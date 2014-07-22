@@ -18,7 +18,8 @@
     "deepEqual",
     "test",
     "emq",
-    "setResolver"
+    "setResolver",
+    "QUnit"
   ],
   "node" : false,
   "browser" : false,
@@ -38,6 +39,7 @@
   "nomen": false,
   "onevar": false,
   "plusplus": false,
+  "quotmark": false,
   "regexp": false,
   "undef": true,
   "sub": true,
