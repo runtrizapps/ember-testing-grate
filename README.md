@@ -20,190 +20,105 @@ Include `dist/globals/main.js` as a script in your tests index.html
 Module Formats
 --------------
 
-You will find all the popular formats in `dist/`. If using globals, all
-methods are found on `window.[!TBD!]`.
-TODO - global name
+You will find all the popular formats in `dist/`.
 
 Examples
 --------
 
-### Global build setup:
+### Importing the `testCrud` helper
 
 ```js
-// inject test helpers onto window
-emq.globalize();
+// In yo' test
+import { testCrud } from 'ember-testing-grate';
 ```
 
-### Setting the resolver
+### Simple usage:
 
 ```js
-// if you don't have a custom resolver, do it like this:
-setResolver(Ember.DefaultResolver.create({namespace: App}));
+module("Cart model tests", {
+  setup: function() {
+    App = this.App = startApp();
+    // NOTE - you **MUST** attach App to `this.App` in test setup!
+  },
+  teardown: function() {
+    Ember.run(App, 'destroy');
+  }
+});
 
-// otherwise something like:
-import Resolver from './path/to/resolver';
-import {setResolver} from 'ember-qunit';
-setResolver(Resolver.create());
-```
 
-### Simple example:
+testCrud(test, 'cart', {
+  list: true,
 
-```js
-// tell ember qunit what you are testing, it will find it from the
-// resolver
-moduleForComponent('x-foo', 'XFooComponent');
+  read: {
+    source: 'listRandom' // Can be `listRandom` OR a static seed's {ID}
+  },
 
-// run a test
-test('it renders', function() {
-  expect(2);
+  create: { // Will create a cart with the specified mock data
+    data: {
+      name: "Test cart"
+    }
+  },
 
-  // creates the component instance
-  var component = this.subject();
-  equal(component.state, 'preRender');
+  update: { // Will pick a random cart, update the name, and save
+    source: 'listRandom',
+    data: {
+      name: "New name for cart!"
+    }
+  },
 
-  // render the component on the page
-  this.render();
-  equal(component.state, 'inDOM');
+  delete: { // Will delete a randomly selected cart
+    source: 'listRandom'
+  }
 });
 ```
 
-### Complex example
+### Complex example with login helper
 
 ```js
-// a more complex example taken from ic-tabs
-moduleForComponent('ic-tabs', 'TabsComponent', {
+import { testCrud } from 'ember-testing-grate';
+import { login } from 'rms/tests/helpers/login';
 
-  // specify the other units that are required for this test
-  needs: [
-    'component:ic-tab',
-    'component:ic-tab-panel',
-    'component:ic-tab-list'
-  ]
+var App;
+
+module("Cart model tests - Champion user", {
+  setup: function() {
+    App = this.App = startApp();
+    QUnit.stop();
+    login("champion", "runtriz123")
+      .then(QUnit.start);
+  },
+  teardown: function() {
+    Ember.run(App, 'destroy');
+  }
 });
 
-test('selects first tab and shows the panel', function() {
-  expect(3);
-  var component = this.subject({
-
-    // can provide properties for the subject, like the yielded template
-    // of a component (not the layout, in this case)
-    template: Ember.Handlebars.compile(''+
-      '{{#ic-tab-list}}'+
-        '{{#ic-tab id="tab1"}}tab1{{/ic-tab}}'+
-        '{{#ic-tab id="tab2"}}tab2{{/ic-tab}}'+
-        '{{#ic-tab id="tab3"}}tab3{{/ic-tab}}'+
-      '{{/ic-tab-list}}'+
-      '{{#ic-tab-panel id="panel1"}}one{{/ic-tab-panel}}'+
-      '{{#ic-tab-panel id="panel2"}}two{{/ic-tab-panel}}'+
-      '{{#ic-tab-panel id="panel3"}}three{{/ic-tab-panel}}'
-    })
-  });
-  this.render();
-  var tab1 = Ember.View.views['tab1'];
-  var panel1 = Ember.View.views['panel1'];
-  ok(component.get('activeTab') === tab1);
-  ok(tab1.get('active'));
-  var el = tab1.$();
-  ok(panel1.$().is(':visible'));
+testCrud(test, 'cart', {
+  create: { // Will create a cart with the specified mock data
+    data: {
+      name: "Test cart"
+    }
+  }
 });
-```
-If you are using nested components with templates, you have to list them separately - otherwise your templates won't be loaded: 
-```js
-moduleForComponent('ic-tabs', 'TabsComponent', {
 
-  // specify the other units and templates that are required for this test
-  needs: [
-    'component:ic-tab',
-    'template:components/ic-tab',
-    'component:ic-tab-panel',
-    'template:components/ic-tab-panel',
-    'component:ic-tab-list'
-  ]
+module("Cart model tests - Standard user", {
+  setup: function() {
+    App = this.App = startApp();
+    QUnit.stop();
+    login("st", "runtriz123")
+      .then(QUnit.start);
+  },
+  teardown: function() {
+    Ember.run(App, 'destroy');
+  }
 });
-.....
-```
 
-### Async Example
-
-Under the hood, if you use `Ember.RSVP.Promise`, ember-qunit will call
-QUnit's `start` and `stop` helpers to stop the test from tearing down
-and running other tests while your asynchronous code runs. ember-qunit
-also asserts that the promise gets fulfilled.
-
-In addition, you can also return promises in the test body:
-
-```js
-// If you return a promise from a test callback it becomes an asyncTest. This
-// is a key difference between ember-qunit and standard QUnit.
-test('async is awesome', function() {
-  expect(1);
-  var myThing = MyThing.create();
-  // myThing.exampleMethod() returns a promise
-  return myThing.exampleMethod().then(function() {
-    ok(myThing.get('finished'));
-  });
+testCrud(test, 'cart', {
+  create: { // Will verify that a cart CANNOT be created with this mock data
+    allow: false,
+    data: {
+      name: "Test cart"
+    }
+  }
 });
-```
 
-If an error is thrown in your promise or a promise
-within `test` becomes rejected, ember-qunit will fail the test.
-To assert that a promise should be rejected, you can "catch"
-the error and assert that you got there:
-
-```js
-test('sometimes async gets rejected', function(){
-  expect(1);
-  var myThing = MyThing.create()
-  
-  return myThing.exampleMethod().then(function(){
-    ok(false, "promise should not be fulfilled");
-  })['catch'](function(err){
-    equal(err.message, "User not Authorized");
-  });
-});
-```
-
-Helpers
--------
-
-### `moduleFor(fullName [, description [, callbacks]])`
-
-- `fullName`: (String) - The full name of the unit, ie
-  `controller:application`, `route:index`.
-
-- `description`: (String) optional - The description of the module
-
-- `callbacks`: (Object) optional - Normal QUnit callbacks (setup and
-  teardown), with addition to `needs`, which allows you specify the
-  other units the tests will need.
-
-### `moduleForComponent(name, [description, callbacks])`
-
-- `name`: (String) - the short name of the component that you'd use in a
-  template, ie `x-foo`, `ic-tabs`, etc.
-
-### `moduleForModel(name, [description, callbacks])`
-
-- `name`: (String) - the short name of the model you'd use in `store`
-  operations ie `user`, `assignmentGroup`, etc.
-
-Contributing
-------------
-
-```sh
-$ npm install
-$ bower install
-$ npm install -g karma-cli broccoli-cli
-$ broccoli serve
-# new tab
-$ karma start
-```
-
-Building dist/
---------------
-
-```sh
-$ broccoli build dist
-# Broccoli will not overwrite dist/, so you
-# may need to delete it first
 ```
