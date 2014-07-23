@@ -122,3 +122,33 @@ testCrud(test, 'cart', {
 });
 
 ```
+
+### Configuration
+
+#### testCrud(qUnitTestFunction, modelName, options)
+Options is specified as follows:
+```js
+{
+  list: true or false, // short for `{ allow: true }` or `{ allow: false }`
+
+  read: {
+    source: 'listRandom' or Static seed ID
+    allow: true or false (default: true)
+  },
+
+  create: {
+    data: { .. Mock Data .. }
+    allow: true or false (default: true)
+  },
+
+  update: {
+    source: 'listRandom' or Static seed ID
+    data: { .. Mock Data .. }
+    allow: true or false (default: true)
+  },
+
+  delete: { 
+    source: 'listRandom' or Static seed ID
+  }
+}
+```
