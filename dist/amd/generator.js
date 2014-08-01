@@ -12,8 +12,8 @@ define(
 
         if (typeof configEntry !== 'undefined') {
           if (Array.isArray(configEntry)) {
-            for (var n = 0, m = configEntry.length; n < m; i++) {
-              processOption.call(this, configEntry[n], operationName, allowTest, rejectTest, configKeys);
+            for (var n = 0, m = configEntry.length; n < m; n++) {
+              processOption.call(this, operationName, configEntry[n], allowTest, rejectTest, configKeys);
             }
             return;
           }
@@ -24,16 +24,22 @@ define(
               paramArray.push(configEntry[configKeys[i]]);
             }
           }
+          if (configEntry.message) {
+            paramArray.push(configEntry.message);
+          }
           paramArray.unshift(name);
 
           if (configEntry !== false && configEntry.forbid !== true && configEntry.allow !== false) {
-            test(operationName.pluralize().capitalize() + " tests", function() {
+            test(operationName.capitalize() + " tests", function() {
               Ember.run(this, function() {
                 allowTest.apply(this, paramArray);
               });
             });
           } else {
-            test(operationName.pluralize().capitalize() + " forbidden", function() {
+            if (configEntry.statusCode) {
+              paramArray.push(configEntry.statusCode);
+            }
+            test(operationName.capitalize() + " forbidden", function() {
               Ember.run(this, function() {
                 rejectTest.apply(this, paramArray);
               });
@@ -134,109 +140,138 @@ define(
         });
     }
 
-    function createAllowedTest(promise, successMessage, failureMessage) {
+    function createAllowedTest(promise, successMessage, failureMessage, extraMessage) {
       async();
+      extraMessage = extraMessage ? ' - ' + extraMessage : '';
       return promise
-        .then(handleSuccess(successMessage), handleFailure(failureMessage))
+        .then(handleSuccess(successMessage + extraMessage), handleFailure(failureMessage + extraMessage))
         .finally(asyncDone);
     }
 
-    function createForbidTest(promise, successMessage, failureMessage) {
+    function createForbidTest(promise, successMessage, failureMessage, extraMessage, statusCode) {
+      if (extraMessage && !statusCode) {
+        if (typeof extraMessage === 'number' || !isNaN(parseInt(extraMessage, 10))) {
+          statusCode = extraMessage;
+          extraMessage = null;
+        }
+      }
       async();
+      extraMessage = extraMessage ? ' - ' + extraMessage : '';
       return promise
-        .then(handleFailure(failureMessage), handleSuccess(successMessage))
+        .then(handleFailure(failureMessage + extraMessage))
+        .catch(function(error) {
+          if (statusCode) {
+            equal(error.jqXHR.status, statusCode, "returns expected HTTP " + statusCode + " response");
+          }
+          return handleSuccess(successMessage + extraMessage)();
+        })
         .finally(asyncDone);
     }
 
-    function testUpdate(name, source, data) {
+    function testUpdate(name, source, data, message) {
       return createAllowedTest(
         fetchItem.call(this, name, source)
           .then(function(item) {
             return updateItem(item, data);
           }),
         name + " is updatable",
-        name + " failed to be updated"
+        name + " failed to be updated",
+        message
       );
     }
 
-    function forbidUpdate(name, source, data) {
+    function forbidUpdate(name, source, data, message, statusCode) {
       return createForbidTest(
         fetchItem.call(this, name, source)
           .then(function(item) {
             return updateItem(item, data);
           }),
         name + " cannot be updated",
-        name + " should NOT be updatable"
+        name + " should NOT be updatable",
+        message,
+        statusCode
       );
     }
 
-    function testDelete(name, source) {
+    function testDelete(name, source, message) {
       return createAllowedTest(
         fetchItem.call(this, name, source)
           .then(function(item) {
             return item.destroyRecord();
           }),
         name + " is deletable",
-        name + " failed to be deleted"
+        name + " failed to be deleted",
+        message
       );
     }
 
-    function forbidDelete(name, source) {
+    function forbidDelete(name, source, message, statusCode) {
       return createForbidTest(
         fetchItem.call(this, name, source)
           .then(function(item) {
             return item.destroyRecord();
           }),
         name + " cannot be deleted",
-        name + " should NOT be deletable"
+        name + " should NOT be deletable",
+        message,
+        statusCode
       );
     }
 
-    function testCreate(name, data) {
+    function testCreate(name, data, message) {
       return createAllowedTest(
         createItem.call(this, name, data),
         name + " is creatable",
-        name + " failed to be created"
+        name + " failed to be created",
+        message
       );
     }
 
-    function forbidCreate(name, data) {
+    function forbidCreate(name, data, message, statusCode) {
       return createForbidTest(
         createItem.call(this, name, data),
         name + " cannot be created",
-        name + " should NOT be creatable"
+        name + " should NOT be creatable",
+        message,
+        statusCode
       );
     }
 
-    function testList(name) {
+    function testList(name, message) {
       return createAllowedTest(
         getList.call(this, name),
         name + " is listable",
-        name + " failed to be listed"
+        name + " failed to be listed",
+        message
       );
     }
 
-    function forbidList(name) {
+    function forbidList(name, message, statusCode) {
       return createForbidTest(
         getList.call(this, name),
         name + " is not listable",
-        name + " should NOT be listable"
+        name + " should NOT be listable",
+        message,
+        statusCode
       );
     }
 
-    function testGet(name, source) {
+    function testGet(name, source, message) {
       return createAllowedTest(
         fetchItem.call(this, name, source),
         name + " is readable",
-        name + " failed to be fetched"
+        name + " failed to be fetched",
+        message
       );
     }
 
-    function forbidGet(name, source) {
+    function forbidGet(name, source, message, statusCode) {
       return createForbidTest(
         fetchItem.call(this, name, source),
         name + " is not readable",
-        name + " should NOT be readable"
+        name + " should NOT be readable",
+        message,
+        statusCode
       );
     }
 
