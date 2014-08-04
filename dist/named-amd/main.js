@@ -31,6 +31,7 @@ define("ember-testing-grate/generator",
 
           if (configEntry !== false && configEntry.forbid !== true && configEntry.allow !== false) {
             test(operationName.capitalize() + " tests", function() {
+              this._grateConfig = config;
               Ember.run(this, function() {
                 allowTest.apply(this, paramArray);
               });
@@ -54,6 +55,29 @@ define("ember-testing-grate/generator",
       processOption.call(this, 'update', config.update, testUpdate, forbidUpdate, ['source', 'data']);
       processOption.call(this, 'delete', config.delete, testDelete, forbidDelete, ['source']);
 
+    }
+
+    function getCreateData() {
+      var createData = this._grateConfig.create,
+          data;
+
+      function processCreateOption(opt) {
+        if (opt.allow !== false && opt.forbid !== true) {
+          data = opt.data;
+        }
+      }
+
+      if (Array.isArray(createData)) {
+        createData.find(function(opt) {
+          processCreateOption(opt);
+          return !!data;
+        });
+      } else {
+        processCreateOption(createData);
+      }
+
+      Ember.assert('Create is not a valid source for these options', data);
+      return data;
     }
 
     function getList(name) {
@@ -82,14 +106,19 @@ define("ember-testing-grate/generator",
           }
         }
 
-        var key, val;
+        var key, val, promiseList = [];
 
         for (key in data) {
           if (data.hasOwnProperty(key)) {
             val = data[key];
 
             if (typeof val === 'function') {
-              val = val.call(this, object.get(key));
+              val = val.call(object, object.get(key));
+
+              if (val.then) {
+                promiseList.push(val);
+                continue;
+              }
             }
 
             if (typeof val !== 'undefined') {
@@ -97,8 +126,9 @@ define("ember-testing-grate/generator",
             }
           }
         }
-
-        resolve(object);
+        Ember.RSVP.Promise.all(promiseList).then(function() {
+          resolve(object);
+        });
       });
     }
 
@@ -119,7 +149,7 @@ define("ember-testing-grate/generator",
       } else if (source === 'listFilter') {
         // TODO - handle listFilter
       } else if (source === 'create') {
-        // TODO - handle create
+        fetchFn = createItem.bind(this, name, getCreateData.call(this));
       } else if (typeof source === 'number' || typeof source === 'string') {
         var store = getStore(this.App);
         fetchFn = store.find.bind(store, name, source);
