@@ -313,7 +313,9 @@ define("ember-testing-grate/generator",
     }
     function handleFailure(message) {
       return function(arg) {
-        ok(false, message || "Promise was rejected");
+        var errorPrintout = arg.jqXHR ? "\nStatus: " + arg.jqXHR.status + " " + arg.jqXHR.statusText + "\n" +
+          "Response: " + arg.jqXHR.responseText.substr(0, 450) : '';
+        ok(false, (message || "Promise was rejected") + errorPrintout);
         return arg;
       };
     }
