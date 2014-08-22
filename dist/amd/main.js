@@ -1,5 +1,5 @@
 define(
-  ["ember","./generator","exports"],
+  ["ember","./crudder","exports"],
   function(__dependency1__, __dependency2__, __exports__) {
     "use strict";
     var Ember = __dependency1__["default"] || __dependency1__;
@@ -12,4 +12,5 @@ define(
     }
 
     __exports__.testCrud = testCrud;
+    __exports__.globalize = globalize;
   });

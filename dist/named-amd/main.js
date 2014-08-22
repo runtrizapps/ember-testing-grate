@@ -1,10 +1,95 @@
-define("ember-testing-grate/generator",
+define("ember-testing-grate/apply-data",
+  ["./assert-promise","exports"],
+  function(__dependency1__, __exports__) {
+    "use strict";
+    var handleSuccess = __dependency1__.handleSuccess;
+    var handleFailure = __dependency1__.handleFailure;
+
+    function applyData(object, data) {
+      return new Ember.RSVP.Promise(function(resolve, reject) {
+        if (typeof data === 'function') {
+          var newObject = data.call(object, object);
+
+          if (!newObject.then) {
+            return resolve(newObject);
+          } else {
+            return newObject
+              .catch(handleFailure('Failed to assemble data for model'))
+              .then(resolve);
+          }
+        }
+
+        var key, val, promiseList = [];
+
+        for (key in data) {
+          if (data.hasOwnProperty(key)) {
+            val = data[key];
+
+            if (typeof val === 'function') {
+              val = val.call(object, object.get(key));
+
+              if (val.then) {
+                val = val.catch(handleFailure('Failed to apply attribute: ' + key));
+                promiseList.push(val);
+                continue;
+              }
+            }
+
+            if (typeof val !== 'undefined') {
+              object.set(key, val);
+            }
+          }
+        }
+        Ember.RSVP.Promise.all(promiseList).then(function() {
+          resolve(object);
+        });
+      });
+    }
+
+    __exports__["default"] = applyData;
+    __exports__.applyData = applyData;
+  });
+define("ember-testing-grate/assert-promise",
   ["exports"],
   function(__exports__) {
     "use strict";
-    function getStore(App, name) {
-      return App.__container__.lookup('store:' + (name || 'main'));
+    function handleSuccess(message) {
+      return function(arg) {
+        ok(true, message || "Promise resolved successfully");
+        return arg;
+      };
     }
+    function handleFailure(message) {
+      return function(arg) {
+        var errorPrintout = '';
+        if (arg.message) errorPrintout += "\nMessage: " + arg.message + "\n";
+
+        if (arg.jqXHR) {
+          errorPrintout += "\nStatus: " + arg.jqXHR.status + " " + arg.jqXHR.statusText + "\n" +
+                           "Response: " + arg.jqXHR.responseText.substr(0, 450);
+        }
+        ok(false, (message || "Promise was rejected") + errorPrintout);
+        return arg;
+      };
+    }
+
+    __exports__.handleSuccess = handleSuccess;
+    __exports__.handleFailure = handleFailure;
+  });
+define("ember-testing-grate/crudder",
+  ["./test-allows","./test-forbids","exports"],
+  function(__dependency1__, __dependency2__, __exports__) {
+    "use strict";
+    var testList = __dependency1__.testList;
+    var testCreate = __dependency1__.testCreate;
+    var testGet = __dependency1__.testGet;
+    var testUpdate = __dependency1__.testUpdate;
+    var testDelete = __dependency1__.testDelete;
+    var forbidList = __dependency2__.forbidList;
+    var forbidCreate = __dependency2__.forbidCreate;
+    var forbidGet = __dependency2__.forbidGet;
+    var forbidUpdate = __dependency2__.forbidUpdate;
+    var forbidDelete = __dependency2__.forbidDelete;
 
     function testCrud(test, name, config) {
 
@@ -31,9 +116,14 @@ define("ember-testing-grate/generator",
 
           if (configEntry !== false && configEntry.forbid !== true && configEntry.allow !== false) {
             test(operationName.capitalize() + " tests", function() {
-              this._grateConfig = config;
+              this._grateConfig = config; // todo - make this less sucky (1 of 2, see store-ops)
               Ember.run(this, function() {
-                allowTest.apply(this, paramArray);
+                allowTest.apply(this, paramArray)
+                  .then(function(item) {
+                    if (typeof configEntry.then === 'function' && item instanceof DS.Model) {
+                      configEntry.then.call(this, item);
+                    }
+                  });
               });
             });
           } else {
@@ -57,8 +147,36 @@ define("ember-testing-grate/generator",
 
     }
 
+    __exports__.testCrud = testCrud;
+  });
+define("ember-testing-grate",
+  ["ember","./crudder","exports"],
+  function(__dependency1__, __dependency2__, __exports__) {
+    "use strict";
+    var Ember = __dependency1__["default"] || __dependency1__;
+    var testCrud = __dependency2__.testCrud;
+
+    Ember.testing = true;
+
+    function globalize() {
+      window.testCrud = testCrud;
+    }
+
+    __exports__.testCrud = testCrud;
+    __exports__.globalize = globalize;
+  });
+define("ember-testing-grate/store-ops",
+  ["./apply-data","exports"],
+  function(__dependency1__, __exports__) {
+    "use strict";
+    var applyData = __dependency1__.applyData;
+
+    function getStore(App, name) {
+      return App.__container__.lookup('store:' + (name || 'main'));
+    }
+
     function getCreateData() {
-      var createData = this._grateConfig.create,
+      var createData = this._grateConfig.create, // todo - make this less sucky (2 of 2, see crudder)
           data;
 
       function processCreateOption(opt) {
@@ -93,45 +211,6 @@ define("ember-testing-grate/generator",
           return item.reload();
         });
     }
-
-    function applyData(object, data) {
-      return new Ember.RSVP.Promise(function(resolve, reject) {
-        if (typeof data === 'function') {
-          var newObject = data.call(object, object);
-
-          if (!newObject.then) {
-            return resolve(newObject);
-          } else {
-            return newObject.then(resolve);
-          }
-        }
-
-        var key, val, promiseList = [];
-
-        for (key in data) {
-          if (data.hasOwnProperty(key)) {
-            val = data[key];
-
-            if (typeof val === 'function') {
-              val = val.call(object, object.get(key));
-
-              if (val.then) {
-                promiseList.push(val);
-                continue;
-              }
-            }
-
-            if (typeof val !== 'undefined') {
-              object.set(key, val);
-            }
-          }
-        }
-        Ember.RSVP.Promise.all(promiseList).then(function() {
-          resolve(object);
-        });
-      });
-    }
-
     function createItem(name, data) {
       var newObject = getStore(this.App).createRecord(name);
 
@@ -140,7 +219,6 @@ define("ember-testing-grate/generator",
           return object.save();
         });
     }
-
     function fetchItem(name, source) {
       var fetchFn;
 
@@ -170,6 +248,158 @@ define("ember-testing-grate/generator",
         });
     }
 
+    __exports__.getList = getList;
+    __exports__.createItem = createItem;
+    __exports__.fetchItem = fetchItem;
+    __exports__.updateItem = updateItem;
+  });
+define("ember-testing-grate/test-allows",
+  ["./test-generators","./store-ops","exports"],
+  function(__dependency1__, __dependency2__, __exports__) {
+    "use strict";
+    var createAllowedTest = __dependency1__.createAllowedTest;
+    var getList = __dependency2__.getList;
+    var createItem = __dependency2__.createItem;
+    var fetchItem = __dependency2__.fetchItem;
+    var updateItem = __dependency2__.updateItem;
+
+    function testUpdate(name, source, data, message) {
+      return createAllowedTest(
+        fetchItem.call(this, name, source)
+          .then(function(item) {
+            return updateItem(item, data);
+          }),
+        name + " is updatable",
+        name + " failed to be updated",
+        message
+      );
+    }
+
+    function testDelete(name, source, message) {
+      return createAllowedTest(
+        fetchItem.call(this, name, source)
+          .then(function(item) {
+            return item.destroyRecord();
+          }),
+        name + " is deletable",
+        name + " failed to be deleted",
+        message
+      );
+    }
+
+    function testCreate(name, data, message) {
+      return createAllowedTest(
+        createItem.call(this, name, data),
+        name + " is creatable",
+        name + " failed to be created",
+        message
+      );
+    }
+
+    function testList(name, message) {
+      return createAllowedTest(
+        getList.call(this, name),
+        name + " is listable",
+        name + " failed to be listed",
+        message
+      );
+    }
+
+    function testGet(name, source, message) {
+      return createAllowedTest(
+        fetchItem.call(this, name, source),
+        name + " is readable",
+        name + " failed to be fetched",
+        message
+      );
+    }
+
+    __exports__.testList = testList;
+    __exports__.testCreate = testCreate;
+    __exports__.testGet = testGet;
+    __exports__.testUpdate = testUpdate;
+    __exports__.testDelete = testDelete;
+  });
+define("ember-testing-grate/test-forbids",
+  ["./test-generators","./store-ops","exports"],
+  function(__dependency1__, __dependency2__, __exports__) {
+    "use strict";
+    var createForbidTest = __dependency1__.createForbidTest;
+    var getList = __dependency2__.getList;
+    var createItem = __dependency2__.createItem;
+    var fetchItem = __dependency2__.fetchItem;
+    var updateItem = __dependency2__.updateItem;
+
+    function forbidUpdate(name, source, data, message, statusCode) {
+      return createForbidTest(
+        fetchItem.call(this, name, source)
+          .then(function(item) {
+            return updateItem(item, data);
+          }),
+        name + " cannot be updated",
+        name + " should NOT be updatable",
+        message,
+        statusCode
+      );
+    }
+
+    function forbidDelete(name, source, message, statusCode) {
+      return createForbidTest(
+        fetchItem.call(this, name, source)
+          .then(function(item) {
+            return item.destroyRecord();
+          }),
+        name + " cannot be deleted",
+        name + " should NOT be deletable",
+        message,
+        statusCode
+      );
+    }
+
+    function forbidCreate(name, data, message, statusCode) {
+      return createForbidTest(
+        createItem.call(this, name, data),
+        name + " cannot be created",
+        name + " should NOT be creatable",
+        message,
+        statusCode
+      );
+    }
+
+    function forbidList(name, message, statusCode) {
+      return createForbidTest(
+        getList.call(this, name),
+        name + " is not listable",
+        name + " should NOT be listable",
+        message,
+        statusCode
+      );
+    }
+
+    function forbidGet(name, source, message, statusCode) {
+      return createForbidTest(
+        fetchItem.call(this, name, source),
+        name + " is not readable",
+        name + " should NOT be readable",
+        message,
+        statusCode
+      );
+    }
+
+    __exports__.forbidList = forbidList;
+    __exports__.forbidCreate = forbidCreate;
+    __exports__.forbidGet = forbidGet;
+    __exports__.forbidUpdate = forbidUpdate;
+    __exports__.forbidDelete = forbidDelete;
+  });
+define("ember-testing-grate/test-generators",
+  ["./assert-promise","exports"],
+  function(__dependency1__, __exports__) {
+    "use strict";
+    var handleSuccess = __dependency1__.handleSuccess;
+    var handleFailure = __dependency1__.handleFailure;
+
+
     function createAllowedTest(promise, successMessage, failureMessage, extraMessage) {
       async();
       extraMessage = extraMessage ? ' - ' + extraMessage : '';
@@ -198,127 +428,6 @@ define("ember-testing-grate/generator",
         .finally(asyncDone);
     }
 
-    function testUpdate(name, source, data, message) {
-      return createAllowedTest(
-        fetchItem.call(this, name, source)
-          .then(function(item) {
-            return updateItem(item, data);
-          }),
-        name + " is updatable",
-        name + " failed to be updated",
-        message
-      );
-    }
-
-    function forbidUpdate(name, source, data, message, statusCode) {
-      return createForbidTest(
-        fetchItem.call(this, name, source)
-          .then(function(item) {
-            return updateItem(item, data);
-          }),
-        name + " cannot be updated",
-        name + " should NOT be updatable",
-        message,
-        statusCode
-      );
-    }
-
-    function testDelete(name, source, message) {
-      return createAllowedTest(
-        fetchItem.call(this, name, source)
-          .then(function(item) {
-            return item.destroyRecord();
-          }),
-        name + " is deletable",
-        name + " failed to be deleted",
-        message
-      );
-    }
-
-    function forbidDelete(name, source, message, statusCode) {
-      return createForbidTest(
-        fetchItem.call(this, name, source)
-          .then(function(item) {
-            return item.destroyRecord();
-          }),
-        name + " cannot be deleted",
-        name + " should NOT be deletable",
-        message,
-        statusCode
-      );
-    }
-
-    function testCreate(name, data, message) {
-      return createAllowedTest(
-        createItem.call(this, name, data),
-        name + " is creatable",
-        name + " failed to be created",
-        message
-      );
-    }
-
-    function forbidCreate(name, data, message, statusCode) {
-      return createForbidTest(
-        createItem.call(this, name, data),
-        name + " cannot be created",
-        name + " should NOT be creatable",
-        message,
-        statusCode
-      );
-    }
-
-    function testList(name, message) {
-      return createAllowedTest(
-        getList.call(this, name),
-        name + " is listable",
-        name + " failed to be listed",
-        message
-      );
-    }
-
-    function forbidList(name, message, statusCode) {
-      return createForbidTest(
-        getList.call(this, name),
-        name + " is not listable",
-        name + " should NOT be listable",
-        message,
-        statusCode
-      );
-    }
-
-    function testGet(name, source, message) {
-      return createAllowedTest(
-        fetchItem.call(this, name, source),
-        name + " is readable",
-        name + " failed to be fetched",
-        message
-      );
-    }
-
-    function forbidGet(name, source, message, statusCode) {
-      return createForbidTest(
-        fetchItem.call(this, name, source),
-        name + " is not readable",
-        name + " should NOT be readable",
-        message,
-        statusCode
-      );
-    }
-
-    function handleSuccess(message) {
-      return function(arg) {
-        ok(true, message || "Promise resolved successfully");
-        return arg;
-      };
-    }
-    function handleFailure(message) {
-      return function(arg) {
-        var errorPrintout = arg.jqXHR ? "\nStatus: " + arg.jqXHR.status + " " + arg.jqXHR.statusText + "\n" +
-          "Response: " + arg.jqXHR.responseText.substr(0, 450) : '';
-        ok(false, (message || "Promise was rejected") + errorPrintout);
-        return arg;
-      };
-    }
     function async() {
       QUnit.stop();
     }
@@ -327,21 +436,6 @@ define("ember-testing-grate/generator",
       return arg;
     }
 
-
-    __exports__.testCrud = testCrud;
-  });
-define("ember-testing-grate",
-  ["ember","./generator","exports"],
-  function(__dependency1__, __dependency2__, __exports__) {
-    "use strict";
-    var Ember = __dependency1__["default"] || __dependency1__;
-    var testCrud = __dependency2__.testCrud;
-
-    Ember.testing = true;
-
-    function globalize() {
-      window.testCrud = testCrud;
-    }
-
-    __exports__.testCrud = testCrud;
+    __exports__.createAllowedTest = createAllowedTest;
+    __exports__.createForbidTest = createForbidTest;
   });
