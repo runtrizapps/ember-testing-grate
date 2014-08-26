@@ -1,21 +1,40 @@
 Ember Testing Grate
 ===========
 
-## Note - below readme is for ember-qunit. TODO!
-
 About
 -----
 
-Ember QUnit uses your application's resolver to find and automatically
-create test subjects for you with the `moduleFor` and `test` helpers.
+Ember-testing-grate allows for easy spin-up of API integration tests 
+using your Ember Data models.
 
 *This is a work in progress* but its also quite handy already. Feedback
 is highly encouraged.
 
 Simple Usage
 ------------
+### Ember-CLI
 
-Include `dist/globals/main.js` as a script in your tests index.html
+Add to Brocfile
+```js
+// Brocfile.js
+if (app.tests) app.import('bower_components/ember-testing-grate/dist/named-amd/main.js', {
+  exports: {
+    'ember-testing-grate': ['testCrud']
+  }
+});
+```
+In your tests..
+```js
+// In your test
+import { testCrud } from 'ember-testing-grate';
+```
+
+### Global use
+Include `dist/globals/main.js` as a script in your tests index.html.
+
+Then, run `emgrate.globablize();`  
+Now, `window.testCrud` is available for use.
+
 
 Module Formats
 --------------
@@ -24,13 +43,6 @@ You will find all the popular formats in `dist/`.
 
 Examples
 --------
-
-### Importing the `testCrud` helper
-
-```js
-// In yo' test
-import { testCrud } from 'ember-testing-grate';
-```
 
 ### Simple usage:
 
@@ -46,7 +58,7 @@ module("Cart model tests", {
 });
 
 
-testCrud(test, 'cart', {
+testCrud(test, 'cart', { // NOTE - you **MUST** pass the QUnit `test` function first!
   list: true,
 
   read: {
