@@ -27,7 +27,7 @@ define(
         .then(handleFailure(failureMessage + extraMessage))
         .catch(function(error) {
           if (statusCode) {
-            equal(error.jqXHR.status, statusCode, "returns expected HTTP " + statusCode + " response");
+            equal(error.status || error.jqXHR && error.jqXHR.status, statusCode, "returns expected HTTP " + statusCode + " response");
           }
           return handleSuccess(successMessage + extraMessage)();
         })
