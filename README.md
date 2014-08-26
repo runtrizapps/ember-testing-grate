@@ -44,10 +44,10 @@ You will find all the popular formats in `dist/`.
 Examples
 --------
 
-### Simple usage:
+### Overview:
 
 ```js
-module("Cart model tests", {
+module("Grate sample tests", {
   setup: function() {
     App = this.App = startApp();
     // NOTE - you **MUST** attach App to `this.App` in test setup!
@@ -57,32 +57,73 @@ module("Cart model tests", {
   }
 });
 
-
 testCrud(test, 'cart', { // NOTE - you **MUST** pass the QUnit `test` function first!
-  list: true,
-
+  list: {
+    allow: <Boolean>
+  },
   read: {
-    source: 'listRandom' // Can be `listRandom` OR a static seed's {ID}
+    allow: <Boolean>,
+    source: <Source (see below)>
   },
-
-  create: { // Will create a cart with the specified mock data
-    data: {
-      name: "Test cart"
-    }
+  create: {
+    allow: <Boolean>,
+    data: <Data (see below)>
   },
-
-  update: { // Will pick a random cart, update the name, and save
-    source: 'listRandom',
-    data: {
-      name: "New name for cart!"
-    }
+  update: {
+    allow: <Boolean>,
+    data: <Data>,
+    source: <Source>
   },
-
-  delete: { // Will delete a randomly selected cart
-    source: 'listRandom'
+  delete: {
+    allow: <Boolean>,
+    source: <Source>
   }
 });
 ```
+
+* List/Create/Read/Update/Delete **can also accept Arrays of tests**
+* Each test accepts an optional `message: <String>` parameter.
+* `allow: false` tests accept a `statusCode: <Number>` HTTP code assertion
+
+#### Providing <Data> (for create/update)
+A `<Data>` above can be one of:
+* Plain Javascript object:
+```js
+  data: {
+    name: 'test-name'
+  }
+```
+* An object with functions for keys:
+```js
+  data: {
+    name: function() { return 'test-name-' + Math.random();}
+  }
+```
+* A function that returns the prepared model (can return a Promise also):
+```js
+  data: function() {
+    return this.store.createRecord('modelName', {name: 'test-name'});
+  }
+```
+
+Relationships work as expected:
+```js
+// Assume model has: "comments: DS.hasMany('comment')"
+  data: {
+    comments: function() {
+      this.get('comments').pushObject(this.store.createRecord('comment'));
+    }
+  }
+```
+
+#### Specifying a <Source> (for update/delete)
+When **updating** or **deleting**, we need to point the grate to a model.
+
+A `<Source>` above can be one of:
+* `'listRandom'` (if listing allowed) - hits api `(e.g. /api/models)` and picks randomly from list
+* `'create'` (if creating allowed) - creates a model on-the-fly to update or delete
+* Static ID's : e.g. `5` or `"2"` - handy to assert rules on known seeds
+* A function that returns an instance of the model (OR, a promise that resolves to a model)
 
 ### Complex example with login helper
 
