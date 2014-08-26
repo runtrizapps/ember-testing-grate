@@ -1,20 +1,35 @@
 {
   "name": "ember-testing-grate",
   "version": "0.0.5",
+  "description": "simplified api integration tests with Ember Data",
+  "main": "dist/named-amd/main.js",
   "authors": [
     "David Govea <david.govea@runtriz.com>"
   ],
-  "license": "Proprietary - Copyright 2014 Runtriz",
+  "license": "MIT",
+  "keywords": [
+    "ember",
+    "ember-data",
+    "testing",
+    "ember-testing", 
+    "integration"
+  ],
   "ignore": [
     "**/.*",
+    "lib",
+    "tmp",
     "node_modules",
     "bower_components",
-    "test"
+    "test",
+    "Brocfile.js",
+    "karma.conf.js"
   ],
-  "dependencies": {
-    "ember": "^1.3.0"
-  },
   "devDependencies": {
-    "ember-data": "~1.0.0-beta.8"
+    "ember": "^1.3.0",
+    "ember-data": "~1.0.0-beta.8",
+    "ember-testing-httpRespond": "~0.1.3",
+    "ember-resolver": "~0.1.7",
+    "qunit": "~1.15.0",
+    "ember-qunit": "~0.1.8"
   }
 }
