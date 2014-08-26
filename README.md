@@ -57,9 +57,9 @@ module("Grate sample tests", {
   }
 });
 
-testCrud(test, 'cart', { // NOTE - you **MUST** pass the QUnit `test` function first!
+testCrud(test, 'modelName', { // NOTE - you **MUST** provide QUnit `test` function first!
   list: {
-    allow: <Boolean>
+    allow: <Boolean> (default true)
   },
   read: {
     allow: <Boolean>,
@@ -85,20 +85,23 @@ testCrud(test, 'cart', { // NOTE - you **MUST** pass the QUnit `test` function f
 * Each test accepts an optional `message: <String>` parameter.
 * `allow: false` tests accept a `statusCode: <Number>` HTTP code assertion
 
-#### Providing <Data> (for create/update)
+#### Providing `<Data>` (for create/update)
 A `<Data>` above can be one of:
+
 * Plain Javascript object:
 ```js
   data: {
     name: 'test-name'
   }
 ```
+
 * An object with functions for keys:
 ```js
   data: {
     name: function() { return 'test-name-' + Math.random();}
   }
 ```
+
 * A function that returns the prepared model (can return a Promise also):
 ```js
   data: function() {
@@ -106,7 +109,7 @@ A `<Data>` above can be one of:
   }
 ```
 
-Relationships work as expected:
+* Relationships work as expected:
 ```js
 // Assume model has: "comments: DS.hasMany('comment')"
   data: {
@@ -116,92 +119,74 @@ Relationships work as expected:
   }
 ```
 
-#### Specifying a <Source> (for update/delete)
-When **updating** or **deleting**, we need to point the grate to a model.
-
+#### Specifying a `<Source>` (for update/delete)
 A `<Source>` above can be one of:
 * `'listRandom'` (if listing allowed) - hits api `(e.g. /api/models)` and picks randomly from list
 * `'create'` (if creating allowed) - creates a model on-the-fly to update or delete
 * Static ID's : e.g. `5` or `"2"` - handy to assert rules on known seeds
 * A function that returns an instance of the model (OR, a promise that resolves to a model)
 
-### Complex example with login helper
+### More complex example
 
 ```js
 import { testCrud } from 'ember-testing-grate';
-import { login } from 'rms/tests/helpers/login';
 
-var App;
-
-module("Cart model tests - Champion user", {
+module("Sample Grate tests for Post model", {
   setup: function() {
-    App = this.App = startApp();
-    QUnit.stop();
-    login("champion", "runtriz123")
-      .then(QUnit.start);
+    this.App = startApp();
   },
   teardown: function() {
     Ember.run(App, 'destroy');
   }
 });
 
-testCrud(test, 'cart', {
-  create: { // Will create a cart with the specified mock data
-    data: {
-      name: "Test cart"
+testCrud(test, 'post', {
+  list: {
+    allow: true,
+    message: "Posts are listable by this user"
+  },
+
+  read: [
+    { source: 'listRandom' }, // Will fetch a random /api/posts/<ID> after listing
+    {
+      allow: false,
+      message: "Soft-deleted posts should not be fetchable",
+      source: 3 // assumes knowledge of seeded Post#3
     }
-  }
-});
+  ],
 
-module("Cart model tests - Standard user", {
-  setup: function() {
-    App = this.App = startApp();
-    QUnit.stop();
-    login("st", "runtriz123")
-      .then(QUnit.start);
-  },
-  teardown: function() {
-    Ember.run(App, 'destroy');
-  }
-});
-
-testCrud(test, 'cart', {
-  create: { // Will verify that a cart CANNOT be created with this mock data
-    allow: false,
-    data: {
-      name: "Test cart"
+  create: [
+    {
+      allow: false,
+      message: "Cannot create a post without an author",
+      statusCode: 422, // Server-side validation test
+      data: { title: "test" }
+    },
+    {
+      message: "Posts are creatable with related `author` model",
+      data: {
+        title: "test title",
+        author: function() {
+          return this.store.find('user', 1); // Set user 1 as author
+        }
+      }
     }
-  }
-});
-
-```
-
-### Configuration
-
-#### testCrud(qUnitTestFunction, modelName, options)
-Options is specified as follows:
-```js
-{
-  list: true or false, // short for `{ allow: true }` or `{ allow: false }`
-
-  read: {
-    source: 'listRandom' or Static seed ID
-    allow: true or false (default: true)
-  },
-
-  create: {
-    data: { .. Mock Data .. }
-    allow: true or false (default: true)
-  },
+  ],
 
   update: {
-    source: 'listRandom' or Static seed ID
-    data: { .. Mock Data .. }
-    allow: true or false (default: true)
+    allow: false,
+    message: "Cannot update a post with a blank title",
+    statusCode: 422,
+    source: 'listRandom', // tries to update a random post
+    data: {
+      title: ''
+    }
   },
 
-  delete: { 
-    source: 'listRandom' or Static seed ID
-  }
-}
+  delete: [
+    { source: "create" }, // creates a post, then destroys it
+    { source: "listRandom" } // picks a random post & deletes it
+  ]
+});
+
 ```
