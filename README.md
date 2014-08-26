@@ -10,8 +10,11 @@ using your Ember Data models.
 *This is a work in progress* but its also quite handy already. Feedback
 is highly encouraged.
 
-Simple Usage
+Including
 ------------
+### Install with bower
+```bower install --save ember-testing-grate```
+
 ### Ember-CLI
 
 Add to Brocfile
@@ -32,16 +35,14 @@ import { testCrud } from 'ember-testing-grate';
 ### Global use
 Include `dist/globals/main.js` as a script in your tests index.html.
 
-Then, run `emgrate.globablize();`  
+Then, run `emgrate.globalize();`  
 Now, `window.testCrud` is available for use.
 
 
-Module Formats
---------------
-
+#### Other formats
 You will find all the popular formats in `dist/`.
 
-Examples
+Usage
 --------
 
 ### Overview:
@@ -126,7 +127,7 @@ A `<Source>` above can be one of:
 * Static ID's : e.g. `5` or `"2"` - handy to assert rules on known seeds
 * A function that returns an instance of the model (OR, a promise that resolves to a model)
 
-### More complex example
+### An Example
 
 ```js
 import { testCrud } from 'ember-testing-grate';
