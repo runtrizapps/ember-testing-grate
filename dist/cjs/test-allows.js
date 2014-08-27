@@ -4,13 +4,14 @@ var getList = require("./store-ops").getList;
 var createItem = require("./store-ops").createItem;
 var fetchItem = require("./store-ops").fetchItem;
 var updateItem = require("./store-ops").updateItem;
+var handleFailure = require("./assert-promise").handleFailure;
 
 function testUpdate(name, source, data, message) {
   return createAllowedTest(
     fetchItem.call(this, name, source)
       .then(function(item) {
         return updateItem(item, data);
-      }),
+      }, handleFailure("Failed to obtain model for updating")),
     name + " is updatable",
     name + " failed to be updated",
     message
@@ -22,7 +23,7 @@ function testDelete(name, source, message) {
     fetchItem.call(this, name, source)
       .then(function(item) {
         return item.destroyRecord();
-      }),
+      }, handleFailure("Failed to obtain model for deleting")),
     name + " is deletable",
     name + " failed to be deleted",
     message

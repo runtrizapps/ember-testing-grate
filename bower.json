@@ -1,6 +1,6 @@
 {
   "name": "ember-testing-grate",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "simplified api integration tests with Ember Data",
   "main": "dist/named-amd/main.js",
   "authors": [

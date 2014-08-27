@@ -1,19 +1,20 @@
 define(
-  ["./test-generators","./store-ops","exports"],
-  function(__dependency1__, __dependency2__, __exports__) {
+  ["./test-generators","./store-ops","./assert-promise","exports"],
+  function(__dependency1__, __dependency2__, __dependency3__, __exports__) {
     "use strict";
     var createAllowedTest = __dependency1__.createAllowedTest;
     var getList = __dependency2__.getList;
     var createItem = __dependency2__.createItem;
     var fetchItem = __dependency2__.fetchItem;
     var updateItem = __dependency2__.updateItem;
+    var handleFailure = __dependency3__.handleFailure;
 
     function testUpdate(name, source, data, message) {
       return createAllowedTest(
         fetchItem.call(this, name, source)
           .then(function(item) {
             return updateItem(item, data);
-          }),
+          }, handleFailure("Failed to obtain model for updating")),
         name + " is updatable",
         name + " failed to be updated",
         message
@@ -25,7 +26,7 @@ define(
         fetchItem.call(this, name, source)
           .then(function(item) {
             return item.destroyRecord();
-          }),
+          }, handleFailure("Failed to obtain model for deleting")),
         name + " is deletable",
         name + " failed to be deleted",
         message

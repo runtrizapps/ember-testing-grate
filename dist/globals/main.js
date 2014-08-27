@@ -250,13 +250,14 @@ var getList = _dereq_("./store-ops").getList;
 var createItem = _dereq_("./store-ops").createItem;
 var fetchItem = _dereq_("./store-ops").fetchItem;
 var updateItem = _dereq_("./store-ops").updateItem;
+var handleFailure = _dereq_("./assert-promise").handleFailure;
 
 function testUpdate(name, source, data, message) {
   return createAllowedTest(
     fetchItem.call(this, name, source)
       .then(function(item) {
         return updateItem(item, data);
-      }),
+      }, handleFailure("Failed to obtain model for updating")),
     name + " is updatable",
     name + " failed to be updated",
     message
@@ -268,7 +269,7 @@ function testDelete(name, source, message) {
     fetchItem.call(this, name, source)
       .then(function(item) {
         return item.destroyRecord();
-      }),
+      }, handleFailure("Failed to obtain model for deleting")),
     name + " is deletable",
     name + " failed to be deleted",
     message
@@ -307,20 +308,21 @@ exports.testCreate = testCreate;
 exports.testGet = testGet;
 exports.testUpdate = testUpdate;
 exports.testDelete = testDelete;
-},{"./store-ops":5,"./test-generators":8}],7:[function(_dereq_,module,exports){
+},{"./assert-promise":2,"./store-ops":5,"./test-generators":8}],7:[function(_dereq_,module,exports){
 "use strict";
 var createForbidTest = _dereq_("./test-generators").createForbidTest;
 var getList = _dereq_("./store-ops").getList;
 var createItem = _dereq_("./store-ops").createItem;
 var fetchItem = _dereq_("./store-ops").fetchItem;
 var updateItem = _dereq_("./store-ops").updateItem;
+var handleFailure = _dereq_("./assert-promise").handleFailure;
 
 function forbidUpdate(name, source, data, message, statusCode) {
   return createForbidTest(
     fetchItem.call(this, name, source)
       .then(function(item) {
         return updateItem(item, data);
-      }),
+      }, handleFailure("Failed to obtain model for updating")),
     name + " cannot be updated",
     name + " should NOT be updatable",
     message,
@@ -333,7 +335,7 @@ function forbidDelete(name, source, message, statusCode) {
     fetchItem.call(this, name, source)
       .then(function(item) {
         return item.destroyRecord();
-      }),
+      }, handleFailure("Failed to obtain model for deleting")),
     name + " cannot be deleted",
     name + " should NOT be deletable",
     message,
@@ -376,7 +378,7 @@ exports.forbidCreate = forbidCreate;
 exports.forbidGet = forbidGet;
 exports.forbidUpdate = forbidUpdate;
 exports.forbidDelete = forbidDelete;
-},{"./store-ops":5,"./test-generators":8}],8:[function(_dereq_,module,exports){
+},{"./assert-promise":2,"./store-ops":5,"./test-generators":8}],8:[function(_dereq_,module,exports){
 "use strict";
 var handleSuccess = _dereq_("./assert-promise").handleSuccess;
 var handleFailure = _dereq_("./assert-promise").handleFailure;
