@@ -67,6 +67,8 @@ define("ember-testing-grate/assert-promise",
         if (arg.jqXHR) {
           errorPrintout += "\nStatus: " + arg.jqXHR.status + " " + arg.jqXHR.statusText + "\n" +
                            "Response: " + arg.jqXHR.responseText.substr(0, 450);
+        } else if (arg.status) {
+          errorPrintout += "\nStatus: " + arg.status;
         }
         ok(false, (message || "Promise was rejected") + errorPrintout);
         return arg;
@@ -208,6 +210,9 @@ define("ember-testing-grate/store-ops",
               rand = Math.floor(Math.random() * length),
               item = list.objectAt(rand);
 
+          if (length === 0) {
+            throw new Error("'listRandom' source specified, but list was empty!");
+          }
           return item.reload();
         });
     }

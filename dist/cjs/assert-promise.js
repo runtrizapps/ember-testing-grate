@@ -13,6 +13,8 @@ function handleFailure(message) {
     if (arg.jqXHR) {
       errorPrintout += "\nStatus: " + arg.jqXHR.status + " " + arg.jqXHR.statusText + "\n" +
                        "Response: " + arg.jqXHR.responseText.substr(0, 450);
+    } else if (arg.status) {
+      errorPrintout += "\nStatus: " + arg.status;
     }
     ok(false, (message || "Promise was rejected") + errorPrintout);
     return arg;

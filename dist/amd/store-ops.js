@@ -41,6 +41,9 @@ define(
               rand = Math.floor(Math.random() * length),
               item = list.objectAt(rand);
 
+          if (length === 0) {
+            throw new Error("'listRandom' source specified, but list was empty!");
+          }
           return item.reload();
         });
     }
