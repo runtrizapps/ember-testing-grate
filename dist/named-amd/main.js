@@ -178,11 +178,12 @@ define("ember-testing-grate/store-ops",
     }
 
     function getCreateData() {
-      var createData = this._grateConfig.create, // todo - make this less sucky (2 of 2, see crudder)
+      var config = this._grateConfig,
+          createData = config && config.create, // todo - make this less sucky (2 of 2, see crudder)
           data;
 
       function processCreateOption(opt) {
-        if (opt.allow !== false && opt.forbid !== true) {
+        if (opt && opt.allow !== false && opt.forbid !== true) {
           data = opt.data;
         }
       }
@@ -196,7 +197,7 @@ define("ember-testing-grate/store-ops",
         processCreateOption(createData);
       }
 
-      Ember.assert('Create is not a valid source for these options', data);
+      if (!data) throw new Error("Invalid source: `{source: 'create'}` was specified, but no `{allow: true}` create tests exist");
       return data;
     }
 
