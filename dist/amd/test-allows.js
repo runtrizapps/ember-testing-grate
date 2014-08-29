@@ -25,6 +25,9 @@ define(
       return createAllowedTest(
         fetchItem.call(this, name, source)
           .then(function(item) {
+            if (item.get('currentState.stateName').match(/created/)) {
+              item.transitionTo('saved');
+            }
             return item.destroyRecord();
           }, handleFailure("Failed to obtain model for deleting")),
         name + " is deletable",

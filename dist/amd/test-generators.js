@@ -29,7 +29,7 @@ define(
           if (statusCode) {
             equal(error.status || error.jqXHR && error.jqXHR.status, statusCode, "returns expected HTTP " + statusCode + " response");
           }
-          return handleSuccess(successMessage + extraMessage)();
+          return handleSuccess(successMessage + extraMessage)(error);
         })
         .finally(asyncDone);
     }

@@ -57,7 +57,7 @@ define(
         });
     }
     function fetchItem(name, source) {
-      var fetchFn;
+      var fetchFn, store, item;
 
       if (source === 'listRandom') {
         fetchFn = getRandomFromList.bind(this, name);
@@ -66,20 +66,33 @@ define(
       } else if (source === 'create') {
         fetchFn = createItem.bind(this, name, getCreateData.call(this));
       } else if (typeof source === 'number' || typeof source === 'string') {
-        var store = getStore(this.App);
+        store = getStore(this.App);
         fetchFn = store.find.bind(store, name, source);
       } else if (typeof source === 'function') {
         fetchFn = source.bind({store: getStore(this.App)});
+      } else if (source.fake || source.local) {
+        Ember.assert("For local (fake) models, you must provide an id.", source.id);
+        store = getStore(this.App);
+        fetchFn = store.createRecord.bind(store, name, {id: source.id});
       } else {
         Ember.assert("Improper source specified");
         return;
       }
 
-      return fetchFn(); // TODO - promise wrap
+      item = fetchFn();
+      if (!item.then) {
+        return new Ember.RSVP.Promise(function(resolve) {
+          resolve(item);
+        });
+      }
+      return item;
     }
 
     function updateItem(item, data) {
-      return applyData.call(this, item, data)
+      if (item.get('currentState.stateName').match(/created/)) {
+        item.transitionTo('updated.uncommitted');
+      }
+      return applyData.call(this, item, data || {})
         .then(function(object) {
           return object.save();
         });
