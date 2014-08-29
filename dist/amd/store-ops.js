@@ -69,7 +69,7 @@ define(
         var store = getStore(this.App);
         fetchFn = store.find.bind(store, name, source);
       } else if (typeof source === 'function') {
-        fetchFn = source.bind(this);
+        fetchFn = source.bind({store: getStore(this.App)});
       } else {
         Ember.assert("Improper source specified");
         return;

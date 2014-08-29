@@ -13,7 +13,6 @@ var forbidDelete = require("./test-forbids").forbidDelete;
 function testCrud(test, name, config) {
 
   function processOption(operationName, configEntry, allowTest, rejectTest, configKeys) {
-
     if (typeof configEntry !== 'undefined') {
       if (Array.isArray(configEntry)) {
         for (var n = 0, m = configEntry.length; n < m; n++) {
@@ -38,11 +37,7 @@ function testCrud(test, name, config) {
           this._grateConfig = config; // todo - make this less sucky (1 of 2, see store-ops)
           Ember.run(this, function() {
             allowTest.apply(this, paramArray)
-              .then(function(item) {
-                if (typeof configEntry.then === 'function' && item instanceof DS.Model) {
-                  configEntry.then.call(this, item);
-                }
-              });
+              .then(invokeAfter);
           });
         });
       } else {
@@ -51,9 +46,16 @@ function testCrud(test, name, config) {
         }
         test(operationName.capitalize() + " forbidden", function() {
           Ember.run(this, function() {
-            rejectTest.apply(this, paramArray);
+            rejectTest.apply(this, paramArray)
+              .then(invokeAfter);
           });
         });
+      }
+    }
+
+    function invokeAfter(result) {
+      if (typeof configEntry.then === 'function') {
+        configEntry.then.call(this, result);
       }
     }
   }
