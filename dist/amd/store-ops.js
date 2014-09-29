@@ -102,4 +102,5 @@ define(
     __exports__.createItem = createItem;
     __exports__.fetchItem = fetchItem;
     __exports__.updateItem = updateItem;
+    __exports__.getStore = getStore;
   });

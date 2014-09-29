@@ -19,7 +19,7 @@ define(
           }
         }
 
-        var key, val, promiseList = [];
+        var key, val, related, promiseList = [];
 
         for (key in data) {
           if (data.hasOwnProperty(key)) {
@@ -28,10 +28,15 @@ define(
             if (typeof val === 'function') {
               val = val.call(object, object.get(key));
 
-              if (val.then) {
+              if (val && val.then) {
                 val = val.catch(handleFailure('Failed to apply attribute: ' + key));
                 promiseList.push(val);
                 continue;
+              }
+            } else {
+              related = (object.constructor || {}).typeForRelationship && object.constructor.typeForRelationship(key);
+              if (related && val.id && (val.fake || val.local)) {
+                val = object.store.createRecord(related.typeKey, {id: val.id});
               }
             }
 

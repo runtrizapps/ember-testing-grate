@@ -17,7 +17,7 @@ function applyData(object, data) {
       }
     }
 
-    var key, val, promiseList = [];
+    var key, val, related, promiseList = [];
 
     for (key in data) {
       if (data.hasOwnProperty(key)) {
@@ -26,10 +26,15 @@ function applyData(object, data) {
         if (typeof val === 'function') {
           val = val.call(object, object.get(key));
 
-          if (val.then) {
+          if (val && val.then) {
             val = val.catch(handleFailure('Failed to apply attribute: ' + key));
             promiseList.push(val);
             continue;
+          }
+        } else {
+          related = (object.constructor || {}).typeForRelationship && object.constructor.typeForRelationship(key);
+          if (related && val.id && (val.fake || val.local)) {
+            val = object.store.createRecord(related.typeKey, {id: val.id});
           }
         }
 
@@ -128,10 +133,39 @@ function testCrud(test, name, config) {
       }
     }
 
-    function invokeAfter(result) {
-      if (typeof configEntry.then === 'function') {
-        configEntry.then.call(this, result);
+    function invokeAfter(resultsArray) {
+      var promises = [],
+          promise,
+          payload,
+          result;
+
+      if (!Array.isArray(resultsArray)) {
+        result = resultsArray;
+        if (result.jqXHR) {
+          payload = result.jqXHR.responseText;
+
+          if (payload) try {
+            payload = JSON.parse(payload)
+          } catch (e) {
+            payload = result.jqXHR.responseText;
+          }
+        }
+      } else {
+        result = resultsArray.get('firstObject');
+        payload = resultsArray.objectAt(1);
       }
+
+      if (typeof configEntry.then === 'function') {
+        promise = configEntry.then.call(this, result);
+        if (promise && promise.then) promises.push(promise);
+      }
+
+      if (typeof configEntry.payload === 'function') {
+        promise = configEntry.payload.call(this, payload);
+        if (promise && promise.then) promises.push(promise);
+      }
+
+      return Ember.RSVP.all(promises);
     }
   }
 
@@ -259,6 +293,7 @@ exports.getList = getList;
 exports.createItem = createItem;
 exports.fetchItem = fetchItem;
 exports.updateItem = updateItem;
+exports.getStore = getStore;
 },{"./apply-data":1}],6:[function(_dereq_,module,exports){
 "use strict";
 var createAllowedTest = _dereq_("./test-generators").createAllowedTest;
@@ -266,14 +301,37 @@ var getList = _dereq_("./store-ops").getList;
 var createItem = _dereq_("./store-ops").createItem;
 var fetchItem = _dereq_("./store-ops").fetchItem;
 var updateItem = _dereq_("./store-ops").updateItem;
+var getStore = _dereq_("./store-ops").getStore;
 var handleFailure = _dereq_("./assert-promise").handleFailure;
 
+function capturePayload(store, item, resultArray) {
+  var serializer = store.serializerFor(item);
+  serializer.reopen({
+    extract: function(store, type, payload) {
+      resultArray.clear();
+      resultArray.unshift(payload);
+      return this._super.apply(this, arguments);
+    }
+  });
+}
+
+function returnResults(array) {
+  return function(result) {
+    array.unshift(result);
+    return array;
+  };
+}
+
 function testUpdate(name, source, data, message) {
+  var results = [];
   return createAllowedTest(
     fetchItem.call(this, name, source)
       .then(function(item) {
+        capturePayload(item.store, item, results);
         return updateItem(item, data);
-      }, handleFailure("Failed to obtain model for updating")),
+      }, handleFailure("Failed to obtain model for updating"))
+
+      .then(returnResults(results)),
     name + " is updatable",
     name + " failed to be updated",
     message
@@ -281,14 +339,18 @@ function testUpdate(name, source, data, message) {
 }
 
 function testDelete(name, source, message) {
+  var results = [];
   return createAllowedTest(
     fetchItem.call(this, name, source)
       .then(function(item) {
         if (item.get('currentState.stateName').match(/created/)) {
           item.transitionTo('saved');
         }
+        capturePayload(item.store, item, results);
         return item.destroyRecord();
-      }, handleFailure("Failed to obtain model for deleting")),
+      }, handleFailure("Failed to obtain model for deleting"))
+
+      .then(returnResults(results)),
     name + " is deletable",
     name + " failed to be deleted",
     message
@@ -296,8 +358,11 @@ function testDelete(name, source, message) {
 }
 
 function testCreate(name, data, message) {
+  var results = [];
+  capturePayload(getStore(this.App), name, results);
   return createAllowedTest(
-    createItem.call(this, name, data),
+    createItem.call(this, name, data)
+      .then(returnResults(results)),
     name + " is creatable",
     name + " failed to be created",
     message
@@ -305,8 +370,11 @@ function testCreate(name, data, message) {
 }
 
 function testList(name, message) {
+  var results = [];
+  capturePayload(getStore(this.App), name, results);
   return createAllowedTest(
-    getList.call(this, name),
+    getList.call(this, name)
+      .then(returnResults(results)),
     name + " is listable",
     name + " failed to be listed",
     message
@@ -314,8 +382,11 @@ function testList(name, message) {
 }
 
 function testGet(name, source, message) {
+  var results = [];
+  capturePayload(getStore(this.App), name, results);
   return createAllowedTest(
-    fetchItem.call(this, name, source),
+    fetchItem.call(this, name, source)
+      .then(returnResults(results)),
     name + " is readable",
     name + " failed to be fetched",
     message

@@ -99,3 +99,4 @@ exports.getList = getList;
 exports.createItem = createItem;
 exports.fetchItem = fetchItem;
 exports.updateItem = updateItem;
+exports.getStore = getStore;
