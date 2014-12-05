@@ -70,8 +70,12 @@ define("ember-testing-grate/assert-promise",
         if (arg.message) errorPrintout += "\nMessage: " + arg.message + "\n";
 
         if (arg.jqXHR) {
-          errorPrintout += "\nStatus: " + arg.jqXHR.status + " " + arg.jqXHR.statusText + "\n" +
-                           "Response: " + arg.jqXHR.responseText.substr(0, 450);
+          errorPrintout += "\nStatus: " + arg.jqXHR.status + " " + arg.jqXHR.statusText + "\n";
+
+          if (arg.jqXHR.responseText) {
+            errorPrintout += "Response: " + arg.jqXHR.responseText.substr(0, 450);
+          }
+
         } else if (arg.status) {
           errorPrintout += "\nStatus: " + arg.status;
         }
